@@ -1,155 +1,67 @@
-// ============================================
-// PROTOCOL BUFFER DEFINITION
-// ============================================
-// 
-// This file defines the "contract" for our service.
-// Think of it as a MENU at a restaurant:
-// - It lists what services are available
-// - It specifies what input is needed
-// - It specifies what output you'll get
-//
-// This file is used to GENERATE Go code automatically.
-// You write this once, and tools create the actual code for you!
+syntax = "proto3";
 
-syntax = "proto3";  // Use Protocol Buffers version 3
-
-package user;  // Package name (like a namespace)
-
-// This tells the code generator where to put the generated Go code
+package user;
 option go_package = "grpc-crud-proj/proto/userpb";
 
-// Import HTTP annotations (needed for gRPC Gateway to create REST endpoints)
 import "google/api/annotations.proto";
 
-// ============================================
-// SERVICE DEFINITION
-// ============================================
-// 
-// A service is like a "class" with methods you can call.
-// Think of it as a restaurant with different services:
-// - CreateUser = "Order food"
-// - GetUser = "Check order status"
-// - UpdateUser = "Modify order"
-// - DeleteUser = "Cancel order"
-//
 service UserService {
-  // CreateUser: Creates a new user in the database
-  // Input: name and email
-  // Output: created user with ID
-  // HTTP Mapping: POST /v1/users
   rpc CreateUser (CreateUserRequest) returns (UserResponse) {
     option (google.api.http) = {
-      post: "/v1/users"  // When someone POSTs to /v1/users, call this
-      body: "*"          // Send entire request body as input
+      post: "/v1/users"
+      body: "*"
     };
   }
   
-  // GetUser: Retrieves a user by their ID
-  // Input: user ID
-  // Output: user information
-  // HTTP Mapping: GET /v1/users/{id}
   rpc GetUser (GetUserRequest) returns (UserResponse) {
     option (google.api.http) = {
-      get: "/v1/users/{id}"  // When someone GETs /v1/users/5, call this with id=5
+      get: "/v1/users/{id}"
     };
   }
   
-  // UpdateUser: Updates an existing user's information
-  // Input: user ID, new name, new email
-  // Output: updated user information
-  // HTTP Mapping: PUT /v1/users/{id}
   rpc UpdateUser (UpdateUserRequest) returns (UserResponse) {
     option (google.api.http) = {
-      put: "/v1/users/{id}"  // When someone PUTs to /v1/users/5, call this
-      body: "*"              // Send entire request body as input
+      put: "/v1/users/{id}"
+      body: "*"
     };
   }
   
-  // DeleteUser: Deletes a user from the database
-  // Input: user ID
-  // Output: success message
-  // HTTP Mapping: DELETE /v1/users/{id}
   rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse) {
     option (google.api.http) = {
-      delete: "/v1/users/{id}"  // When someone DELETEs /v1/users/5, call this
+      delete: "/v1/users/{id}"
     };
   }
 }
 
-// ============================================
-// MESSAGE DEFINITIONS
-// ============================================
-// 
-// Messages are like "data structures" or "forms".
-// They define what data you send and receive.
-//
-// Think of them as:
-// - Request = Form you fill out
-// - Response = Receipt you get back
-
-// User: Represents a user in the system
-// This is like a "user profile" structure
 message User {
-  int32 id = 1;      // User's unique ID (like a student ID number)
-  string name = 2;   // User's name (like "John Doe")
-  string email = 3;  // User's email (like "john@example.com")
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
 }
 
-// CreateUserRequest: What you send when creating a user
-// This is like a "registration form"
 message CreateUserRequest {
-  string name = 1;   // User's name (required)
-  string email = 2;  // User's email (required)
-  // Note: ID is NOT here because database generates it automatically
+  string name = 1;
+  string email = 2;
 }
 
-// GetUserRequest: What you send when getting a user
-// This is like asking "Show me user #5"
 message GetUserRequest {
-  int32 id = 1;  // Which user to get (by ID)
+  int32 id = 1;
 }
 
-// UpdateUserRequest: What you send when updating a user
-// This is like a "profile edit form"
 message UpdateUserRequest {
-  int32 id = 1;      // Which user to update (required)
-  string name = 2;   // New name (optional, but we require it)
-  string email = 3;  // New email (optional, but we require it)
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
 }
 
-// DeleteUserRequest: What you send when deleting a user
-// This is like saying "Delete user #5"
 message DeleteUserRequest {
-  int32 id = 1;  // Which user to delete (by ID)
+  int32 id = 1;
 }
 
-// UserResponse: What you get back from Create/Get/Update
-// This is like a "receipt" showing the user data
 message UserResponse {
-  User user = 1;  // The user object (contains id, name, email)
+  User user = 1;
 }
 
-// DeleteUserResponse: What you get back from Delete
-// This is like a "confirmation message"
 message DeleteUserResponse {
-  string message = 1;  // Success message (like "User deleted")
+  string message = 1;
 }
-
-// ============================================
-// HOW THIS WORKS
-// ============================================
-// 
-// 1. You write this .proto file (the contract)
-// 2. Run: protoc (Protocol Buffer compiler)
-// 3. It generates Go code in proto/userpb/
-// 4. You use that generated code in your server/client
-//
-// It's like:
-// - You write a blueprint (this file)
-// - Tools build the house (generated code)
-// - You live in the house (use the code)
-//
-// Benefits:
-// - Type-safe (compiler catches errors)
-// - Works across languages (Python, Java, Go, etc.)
-// - Efficient (binary format, smaller than JSON)
