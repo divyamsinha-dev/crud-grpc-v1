@@ -1,0 +1,310 @@
+// Copyright 2015 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.api;
+
+option go_package = "google.golang.org/genproto/googleapis/api/http;http";
+
+// Defines the HTTP configuration for an API service. It contains a list of
+// [HttpRule][google.api.HttpRule], each specifying the mapping of an RPC method
+// to one or more HTTP REST API methods.
+message Http {
+  // A list of HTTP configuration rules that apply to individual API methods.
+  //
+  // **NOTE:** All service configuration rules follow "last one wins" order.
+  repeated HttpRule rules = 1;
+
+  // When set to true, URL path parameters will be fully URI-decoded except in
+  // cases of single segment matches in reserved expansion, where "%2F" will be
+  // left encoded.
+  //
+  // The default behavior is to not decode RFC 6570 reserved characters in multi
+  // segment matches.
+  bool fully_decode_reserved_expansion = 2;
+}
+
+// # gRPC Transcoding
+//
+// gRPC Transcoding is a feature for mapping a gRPC method to one or more HTTP
+// REST endpoints. It allows developers to build a single API service that
+// supports both gRPC APIs and REST APIs. Many systems, including [Google
+// APIs](https://github.com/googleapis/googleapis),
+// [Cloud Endpoints](https://cloud.google.com/endpoints), [gRPC
+// Gateway](https://github.com/grpc-ecosystem/grpc-gateway),
+// and [Envoy](https://github.com/envoyproxy/envoy) proxy support this feature
+// and use it for large scale production services.
+//
+// `HttpRule` defines the schema of the gRPC/REST mapping. The mapping specifies
+// how different portions of the gRPC request message are mapped to the URL
+// path, URL query parameters, and HTTP request body. It also controls how the
+// gRPC response message is mapped to the HTTP response body. `HttpRule` is
+// typically specified as an `google.api.http` annotation on the gRPC method.
+//
+// Each mapping specifies a URL path template and an HTTP method. The path
+// template may refer to one or more fields in the gRPC request message, as long
+// as each field is a non-repeated field with a primitive (non-message) type.
+// The path template controls how fields of the request message are mapped to
+// the URL path.
+//
+// Example:
+//
+//     service Messaging {
+//       rpc GetMessage(GetMessageRequest) returns (Message) {
+//         option (google.api.http) = {
+//             get: "/v1/messages/{message_id}"
+//         };
+//       }
+//     }
+//     message GetMessageRequest {
+//       message SubMessage {
+//         string subfield = 1;
+//       }
+//       string message_id = 1; // Mapped to URL path.
+//       int64 revision = 2;    // Mapped to URL query parameter `revision`.
+//       SubMessage sub = 3;    // Mapped to URL query parameter `sub.subfield`.
+//     }
+//
+// This enables the following HTTP alternative to the gRPC call:
+//
+//     GET /v1/messages/123456?revision=2&sub.subfield=foo
+//
+// ## Path template syntax
+//
+// Template syntax is based on [RFC 6570](https://tools.ietf.org/html/rfc6570).
+//
+// The following fields from the request message are bound to the path:
+//
+//   - `message_id` -> `123456`
+//   - `revision` -> `2`
+//   - `sub.subfield` -> `foo`
+//
+// Fields not referenced in the path template automatically become (optional)
+// HTTP query parameters, unless the HTTP method is GET or HEAD, in which case
+// all fields are treated as query parameters. If a field is repeated, it can
+// be sent as multiple query parameters with the same name.
+//
+// Path template matching is done on the encoded path, and unencoded path
+// characters have no special meaning. Matching is case-sensitive.
+//
+// The path template must not contain repeated fields and must not contain
+// reserved expansion. If a field matches the path template, it must not be
+// specified as an HTTP query parameter.
+//
+// If a field is specified as an HTTP query parameter, it must not be in the
+// path template.
+//
+// ## HTTP method
+//
+// The `method` field specifies the HTTP method. The supported values are GET,
+// POST, PUT, PATCH, DELETE, and HEAD. If `method` is not specified, it defaults
+// to GET.
+//
+// ## Request body
+//
+// The `body` field specifies the request body. The `body` can be either `"*"`
+// or a field path. If `body` is `"*"`, the entire request message becomes the
+// request body. If `body` is a field path, only the specified field and its
+// descendants become the request body.
+//
+// Example:
+//
+//     service Messaging {
+//       rpc UpdateMessage(UpdateMessageRequest) returns (Message) {
+//         option (google.api.http) = {
+//           patch: "/v1/messages/{message_id}"
+//           body: "message"
+//         };
+//       }
+//     }
+//     message UpdateMessageRequest {
+//       string message_id = 1;
+//       Message message = 2;
+//     }
+//
+// The following HTTP JSON to RPC mapping is enabled:
+//
+// HTTP | gRPC
+// -----|-----
+// `PATCH /v1/messages/123456 { "text": "Hi!" }` | `UpdateMessage(message_id:
+// "123456" message { text: "Hi!" })`
+//
+// The special name `*` can be used in the body mapping to define that every
+// field not bound by the path template should be mapped to the request body.
+// This enables the following alternative definition of the update method:
+//
+//     service UpdateMessage(UpdateMessageRequest) returns (Message) {
+//       option (google.api.http) = {
+//         patch: "/v1/messages/{message_id}"
+//         body: "*"
+//       };
+//     }
+//     message UpdateMessageRequest {
+//       string message_id = 1;
+//       string text = 2;  // mapped to the body
+//     }
+//
+// The following HTTP JSON to RPC mapping is enabled:
+//
+// HTTP | gRPC
+// -----|-----
+// `PATCH /v1/messages/123456 { "text": "Hi!" }` | `UpdateMessage(message_id:
+// "123456" text: "Hi!")`
+//
+// Note that when using `*` in the body mapping, it is not possible to have
+// HTTP parameters, as all fields not bound by the path end in the body. This
+// makes this option more rarely used in practice when defining REST APIs. The
+// common usage of `*` is in custom methods which don't use the URL at all for
+// transferring data.
+//
+// It is possible to define multiple HTTP methods for one RPC by using the
+// `additional_bindings` option. Example:
+//
+//     service Messaging {
+//       rpc GetMessage(GetMessageRequest) returns (Message) {
+//         option (google.api.http) = {
+//           get: "/v1/messages/{message_id}"
+//           additional_bindings {
+//             get: "/v1/users/{user_id}/messages/{message_id}"
+//           }
+//         };
+//       }
+//     }
+//
+// This enables the following two alternative HTTP JSON to RPC mappings:
+//
+// HTTP | gRPC
+// -----|-----
+// `GET /v1/messages/123456` | `GetMessage(message_id: "123456")`
+// `GET /v1/users/me/messages/123456` | `GetMessage(user_id: "me" message_id:
+// "123456")`
+//
+// ## Rules for HTTP mapping
+//
+// The rules for mapping HTTP path, query parameters, and body fields to the
+// request message are as follows:
+//
+// 1. The `body` field specifies either `*` or a field path, or is
+//    omitted. If omitted, it indicates there is no HTTP request body.
+// 2. Leaf fields (recursive expansion of nested messages in the request) can be
+//    classified into three types:
+//     (a) Matched in the URL template.
+//     (b) Covered by body (if body is `*`, everything except (a) fields;
+//         else everything under the body field)
+//     (c) All other fields.
+// 3. URL query parameters found in the HTTP request are mapped to (c) fields.
+// 4. Any body sent with an HTTP request can contain only (b) fields.
+//
+// The syntax of the path template is as follows:
+//
+//     Template = "/" Segments [ Verb ] ;
+//     Segments = Segment { "/" Segment } ;
+//     Segment  = "*" | "**" | LITERAL | Variable ;
+//     Variable = "{" FieldPath [ "=" Segments ] "}" ;
+//     FieldPath = IDENT { "." IDENT } ;
+//     Verb     = ":" LITERAL ;
+//
+// The syntax `*` matches a single path segment. The syntax `**` matches zero
+// or more path segments, which must be the last part of the path except the
+// `Verb`. The syntax `LITERAL` matches literal text in the path.
+//
+// The syntax `Variable` matches part of the URL path as specified by its
+// template. A variable template must not contain other variables. If a variable
+// matches a single path segment, its template may be omitted, e.g. `{var}`
+// is equivalent to `{var=*}`.
+//
+// If a variable contains exactly one path segment, such as `"{var}"` or
+// `"{var=*}"`, when such a variable is expanded into a URL path, all characters
+// except `[-_.~0-9a-zA-Z]` are percent-encoded. Such variables show up in the
+// Discovery Document as `{var}`.
+//
+// If a variable contains one or more path segments, such as `"{var=foo/*}"` or
+// `"{var=**}"`, when such a variable is expanded into a URL path, all
+// characters except `[-_.~/0-9a-zA-Z]` are percent-encoded. Such variables
+// show up in the Discovery Document as `{+var}`.
+//
+// NOTE: While the single segment variable matches the semantics of
+// [RFC 6570](https://tools.ietf.org/html/rfc6570) Section 3.2.2
+// Simple String Expansion, the multi segment variable **does not** match
+// RFC 6570 Reserved Expansion. The reason is that the Reserved Expansion
+// does not expand special characters like `?` and `#`, which would lead
+// to invalid URLs.
+//
+// NOTE: the field paths in variables and in the `body` must not refer to
+// repeated fields or map fields.
+message HttpRule {
+  // Selects methods to which this rule applies.
+  //
+  // Refer to [selector][google.api.DocumentationRule.selector] for syntax
+  // details.
+  //
+  // NOTE: This field is deprecated and will be removed in the future in favor
+  // of `selector` in each individual rule.
+  string selector = 1;
+
+  // Determines the URL pattern is matched by this rules. This pattern can be
+  // used with any of the {get|put|post|delete|patch} methods. A custom method
+  // can be defined using the 'custom' field.
+  oneof pattern {
+    // Used for listing and getting information about resources.
+    string get = 2;
+
+    // Used for updating a resource.
+    string put = 3;
+
+    // Used for creating a resource.
+    string post = 4;
+
+    // Used for deleting a resource.
+    string delete = 5;
+
+    // Used for updating a resource.
+    string patch = 6;
+
+    // The custom pattern is used for specifying an HTTP method that is not
+    // included in the `pattern` field, such as HEAD, or "*" to leave the
+    // HTTP method unspecified for this rule. The wild-card rule is useful
+    // for services that provide content to Web (HTML) clients.
+    CustomHttpPattern custom = 8;
+  }
+
+  // The name of the request field whose value is mapped to the HTTP body, or
+  // `*` for mapping all fields not captured by the path pattern to the HTTP
+  // body. NOTE: the referred field must not be a repeated field and must be
+  // present at the top-level of request message type.
+  string body = 7;
+
+  // Optional. The name of the response field whose value is mapped to the HTTP
+  // body. When omitted, the full response message will be used as the HTTP
+  // body.
+  //
+  // NOTE: The referred field must be present at the top-level of response
+  // message type.
+  string response_body = 12;
+
+  // Additional HTTP bindings for the selector. Nested bindings must not
+  // contain an `additional_bindings` field themselves (that is, the nesting may
+  // only be one level deep).
+  repeated HttpRule additional_bindings = 11;
+}
+
+// A custom pattern is used for defining custom HTTP verb.
+message CustomHttpPattern {
+  // The name of this custom HTTP verb.
+  string kind = 1;
+
+  // The path matched by this custom verb.
+  string path = 2;
+}
