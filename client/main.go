@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	pb "grpc-crud-proj/proto/userpb"
+	pb "grpc-crud-proj/proto/google/userpb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
