@@ -64,3 +64,7 @@ func main() {
 	}
 	log.Println("Updated User:", updateRes.User)
 }
+
+/*
+ docker run -d -p 50051:50051 -p 8080:8080 --name my-grpc-container grpc-crud-app:latest
+*/

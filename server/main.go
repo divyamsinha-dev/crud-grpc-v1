@@ -122,12 +122,6 @@ func main() {
 		log.Fatal("Failed to register gateway:", err)
 	}
 
-	log.Println("HTTP/REST gateway running on :8080")
-	log.Println("POST   http://localhost:8080/v1/users")
-	log.Println("GET    http://localhost:8080/v1/users/{id}")
-	log.Println("PUT    http://localhost:8080/v1/users/{id}")
-	log.Println("DELETE http://localhost:8080/v1/users/{id}")
-
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal("Failed to serve HTTP:", err)
 	}

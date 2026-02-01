@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      - DB_URL=postgres://user:password@postgres:5432/crud_db?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=crud_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d crud_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+
+
+
+
+
+
+
+
+
+
+
+#2️⃣ ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+#👉 One-time database initialization
+#- ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+#
+#What it does:
+#
+#Runs SQL ONLY on first startup
+#
+#Creates tables, schema, seed data
+#🔹 What does "CMD-SHELL" mean?
+#
+#It tells Docker:
+#
+#“Run this command inside a shell (/bin/sh -c)”
