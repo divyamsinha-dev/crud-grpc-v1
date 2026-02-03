@@ -1,0 +1,7 @@
+func UnaryInterceptor(
+ctx contex.contex,
+req INterface,
+info *grpc.unarySrvrinfo,
+handler grpc.unaryhandler
+(interface{},error){
+

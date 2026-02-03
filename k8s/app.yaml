@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,5 +22,34 @@ spec:
             - containerPort: 8080
           env:
             - name: DB_URL
-
               value: "postgres://user:password@postgres:5432/crud_db?sslmode=disable"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpc-app-service
+spec:
+  selector:
+    app: grpc-app
+  type: LoadBalancer
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: 50051
+      targetPort: 50051
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+
+
+
+
+
+
+
+
+
+      # For gRPC: kubectl port-forward svc/grpc-app-service 50051:50051
+      # For HTTP: kubectl port-forward svc/grpc-app-service 8080:8080

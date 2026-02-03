@@ -1,34 +1,14 @@
-
-FROM golang:alpine AS builder
-
-
-RUN apk update && apk add --no-cache git
-
+FROM golang:alpine
 WORKDIR /app
-
-
-COPY go.mod go.sum ./
-
+COPY . .
 
 RUN go mod download
 
+RUN go build -o app ./server/main.go
 
-COPY . .
+EXPOSE 8080
 
-
-RUN go build -o main ./server/main.go
-
-
-FROM alpine:latest
-
-WORKDIR /app
+CMD ["./app"]
 
 
-COPY --from=builder /app/main .
-
-
-
-
-
-CMD ["./main"]
 

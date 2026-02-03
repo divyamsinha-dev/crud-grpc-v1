@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"log"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 func main() {
@@ -26,6 +28,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Helper to add auth
+	auth := base64.StdEncoding.EncodeToString([]byte("admin:password"))
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Basic "+auth)
+
 	createRes, err := client.CreateUser(ctx, &pb.CreateUserRequest{
 		Name:  "Divyam",
 		Email: "divyam@test.com",
@@ -34,15 +40,6 @@ func main() {
 		log.Fatal("CreateUser error:", err)
 	}
 	log.Println("Created User:", createRes.User)
-
-	createRes2, err := client.CreateUser(ctx, &pb.CreateUserRequest{
-		Name:  "Rahul",
-		Email: "rahul@gmail.com",
-	})
-	if err != nil {
-		log.Fatal("CreateUser error:", err)
-	}
-	log.Println("Created User:", createRes2.User)
 
 	userID := createRes.User.Id
 
@@ -63,8 +60,14 @@ func main() {
 		log.Fatal("UpdateUser error:", err)
 	}
 	log.Println("Updated User:", updateRes.User)
-}
 
-/*
- docker run -d -p 50051:50051 -p 8080:8080 --name my-grpc-container grpc-crud-app:latest
-*/
+	log.Println("Testing DeleteUser with 2s deadline (server sleeps 5m)...")
+	deleteRes, err := client.DeleteUser(ctx, &pb.DeleteUserRequest{
+		Id: userID,
+	})
+	if err != nil {
+		log.Printf("DeleteUser expected error (deadline): %v", err)
+	} else {
+		log.Println("DeleteUser result:", deleteRes.Message)
+	}
+}

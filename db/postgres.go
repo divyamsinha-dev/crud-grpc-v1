@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -14,15 +15,22 @@ func Connect() *sql.DB {
 		connStr = "postgres://divyam.sinha@localhost:5432/postgres?sslmode=disable"
 	}
 
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
+	var db *sql.DB
+	var err error
+
+	for i := 0; i < 15; i++ {
+		db, err = sql.Open("postgres", connStr)
+		if err == nil {
+			if err = db.Ping(); err == nil {
+				log.Println("Connected to Postgres")
+				return db
+			}
+		}
+
+		log.Printf("Failed to connect to postgres: %v. Retrying in 2 seconds (%d/15)...", err, i+1)
+		time.Sleep(2 * time.Second)
 	}
 
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println("Connected to Postgres")
-	return db
+	log.Fatal("Could not connect to postgres after multiple retries: ", err)
+	return nil
 }
