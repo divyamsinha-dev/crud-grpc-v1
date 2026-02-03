@@ -58,3 +58,16 @@ spec:
         - name: postgres-init
           configMap:
             name: postgres-init-script
+
+
+
+
+
+#2. Explaining spec: selector: app: postgres
+#This is the "Search Filter" for the Service.
+#
+#A Service is just an IP address; it doesn't actually contain any code. It needs to know which Pods to send traffic to.
+#
+#How it works: The Service looks at every Pod in your cluster. It asks: "Do you have a label (sticker) that says app=postgres?"
+#
+#The Result: If it finds a Pod with that sticker, it adds that Pod's IP to its "Active List." When traffic hits the Service, it sends it to one of those matching Pods.

@@ -25,7 +25,7 @@ func main() {
 
 	client := pb.NewUserServiceClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	// Helper to add auth
